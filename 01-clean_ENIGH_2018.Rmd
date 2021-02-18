@@ -1,0 +1,106 @@
+---
+title: "R Notebook"
+author: "Mauricio Hernandez"
+date: "2/20/2021"
+output: html_notebook
+---
+
+Follow convention https://www.r-bloggers.com/2019/01/%F0%9F%96%8A-r-coding-style-guide
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Clear memory
+rm(list=ls())
+
+#Set WD
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
+print( getwd() )
+
+#Load Packages
+if (!require("pacman")) install.packages("pacman")
+  pacman::p_load(pacman, party, psych, rio, tidyverse, plyr, knitr, bit64,forcats)
+
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+```{r include= TRUE, echo = FALSE}
+path.data <- "https://mauricioh2.com/disreu/inegi/enigh/"
+
+#df_dwell <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), header=TRUE, 
+#                    fileEncoding="UTF-8-BOM", colClasses=c("folioviv"="character"))
+#df_hshd <-read.csv(paste0(path.data, "2018_enigh_hogares.csv"), header=TRUE, 
+#                    fileEncoding="UTF-8-BOM", colClasses=c("folioviv"="character"))
+#df_hshd_conc<-read.csv(paste0(path.data, "2018_enigh_concentradohogar.csv"), 
+#                         header=TRUE, fileEncoding="UTF-8-BOM", colClasses=c("folioviv"="character"))
+
+df_dwell <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), col_names = TRUE, col_types=c("folioviv"="c", 'estufa_chi'='i'), na ='&')
+
+df_hshd <-read_csv(paste0(path.data, "2018_enigh_hogares.csv"), col_names = TRUE, col_types=c("folioviv"="c", 'anio_carret'='i', 'anio_otro'='i', 'trab_come' ='i', 'huesp_come'='i' ), na ='&')
+
+df_hshd_conc<-read.csv(paste0(path.data, "2018_enigh_concentradohogar.csv"), col_types=c("folioviv"="c"), na ='&', fileEncoding="UTF-8-BOM")
+```
+
+
+
+```{r}
+df_hshd$state_code <- substr(df_hshd$folioviv, 1, 2) %>% strtoi(base = 10L)
+df_hshd$urban_rural <- substr(df_hshd$folioviv, 3, 3) %>% strtoi(base = 10L)
+df_hshd$upm <- substr(df_hshd$folioviv, 4, 7) %>% strtoi(base = 10L)
+df_hshd$decena_lev <- substr(df_hshd$folioviv, 8, 8) %>% strtoi(base = 10L)
+df_hshd$dwelling_sel <- substr(df_hshd$folioviv, 9, 10) %>% strtoi(base = 0L)
+```
+
+
+```{r}
+count(df_hshd, 'urban_rural')
+```
+
+```{r}
+write.csv(df.households, file = 'outputs/temp.csv')
+```
+
+
+```{r data,include= FALSE, echo = FALSE}
+
+#Set up data for analysis
+vivienda <-read.csv("viviendas2018.csv")
+hogares<-read.csv("hogares.csv")
+
+#Make Special Table
+?as_tibble
+vivienda <- as_tibble(vivienda) 
+
+#Mutate(ubica_geo = as.character(ubica_geo))
+vivienda %>%
+  mutate(ubica_geo = as.character(ubica_geo))
+
+# Extracting the first two characters of the values stored in variable ubica_geo, which correspond to the state:
+vivienda$state.code <- substr(vivienda$ubica_geo, 1, 2)
+
+# Create/convert the new variable state into a factor, and assign name of the state as label
+vivienda$state <- factor(vivienda$state.code, 
+                     levels = c("01", "02", "03", "04", "05", "06", "07", 
+                                "08", "09", "10","11", "12", "13", "14", 
+                                "15", "16", "17", "18", "19", "20", 
+                                "21", "22", "23", "24", "25", "26", 
+                                "27", "28", "29", "30", "31", "32"),
+                     labels = c("Aguascalientes", "Baja California", 
+                                "Baja California Sur", "Campeche", 
+                                "Coahuila", "Colima", "Chiapas", 
+                                "Chihuahua", "Mexico City", 
+                                "Durango", "Guanajuato", "Guerrero", 
+                                "Hidalgo", "Jalisco", "Mexico", 
+                                "Michoacan", "Morelos", "Nayarit", 
+                                "Nuevo Leon", "Oaxaca", "Puebla", 
+                                "Queretaro", "Quintana Roo", 
+                                "San Luis Potosi", "Sinaloa", 
+                                "Sonora", "Tabasco", "Tamaulipas", 
+                                "Tlaxcala", "Veracruz", "Yucatan", 
+                                "Zacatecas"))
+
+attach(vivienda)
+
+```
