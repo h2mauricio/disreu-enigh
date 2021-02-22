@@ -1,0 +1,161 @@
+---
+title: "Organizing Household Condensed Data"
+author: "Mauricio Hernandez"
+date: "2/22/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Clear memory
+rm(list=ls())
+
+#Set WD
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
+print( getwd() )
+
+#Load Packages
+if (!require("pacman")) install.packages("pacman")
+  pacman::p_load(pacman, party, psych, rio, tidyverse, knitr, bit64, 
+                 forcats, stargazer, summarytools)
+
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+## Reading ENIGH microdata (CSV files)
+```{r include = TRUE, echo = FALSE}
+path.data <- "https://mauricioh2.com/disreu/inegi/enigh/"
+
+
+#df_hsd_condens <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), col_names = TRUE,
+#                    col_types=c("folioviv"="c", 'estufa_chi'='i'), na ='&')
+
+df_hsd_condens <-read_csv(paste0(path.data, "2018_enigh_concentradohogar.csv"), col_names = TRUE,
+                   col_types=c("folioviv"="c"), na ='&')
+
+```
+
+```{r include = TRUE, echo = FALSE,  results='hide'}
+#df_hsd_expenses <-read_csv(paste0(path.data, "2018_enigh_gastoshogar.csv"), 
+#                           col_names = TRUE,
+#                   col_types=c("folioviv"="c", 'inst_2'= 'i'), na ='&')
+
+df_hsd_expenses <-read_csv("./inputs/2018_enigh_gastoshogar.csv", 
+                           col_names = TRUE, progress = TRUE, na ='-1',
+                   col_types=cols_only("folioviv"='c', "foliohog"='c', "clave"='c',
+                                       "tipo_gasto"='c', "mes_dia"='c', "forma_pag1"='i', 
+                                       "forma_pag2"='i', "forma_pag3"='i', "lugar_comp"='i',
+                                       "orga_inst"='i', "frecuencia"='i', "fecha_adqu"='c', 
+                                       "fecha_pago"='c', "cantidad"='d', "gasto"='d',
+                                       "pago_mp"='d', "costo"='d', "inmujer"='d',
+                                       "inst_1"='i', "inst_2"='i', "num_meses"='i',
+                                       "num_pagos"='i', "ultim_pago"='c', "gasto_tri"='d',
+                                       "gasto_nm"='d', "gas_nm_tri"='d', "imujer_tri"='d'),)
+```
+
+
+```{r}
+df_person_expenses <-read_csv(paste0(path.data, "2018_enigh_gastospersona.csv"),
+                              col_names = TRUE,
+                   col_types=c("folioviv"="c", 'inst' ='i', 'colegia' = 'd', 
+                               'material' = 'd', 'inscrip' = 'd'), na ='-1')
+```
+
+## Descriptive Statistics {.tabset}
+
+### Households Condensed
+
+```{r}
+descr(df_hsd_condens, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+
+### Households Expenses
+
+```{r}
+descr(df_hsd_expenses, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+
+### People Expenses
+```{r}
+descr(df_person_expenses, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+## Check Energy Expenses
+
+Check all the energy expenses in the households expenses data set and people expenses data sets are the same than the ones reported in the households condensed data set.
+
+df_hsd_condens$energia is equal to the sum of gastoshogar.gasto_tri if clave is equal to G009-G016, R001, R003 plus 
+gastospersona.gasto_tri if clave is equal to G009-G016, R001, R003.
+
+
+|Code (clave) |    Description         |
+| ----------- |:----------------------:|
+|G009    	    |Liquefied petroleum gas |
+|G010    	    |Petroleum               |
+|G011    	    |Diesel                  |
+|G012    	    |Carbon                  |
+|G013    	    |Firewood                |
+|G014    	    |Fuel to heat            |
+|G015    	    |Candles                 |
+|G016    	    |Other fuels             |
+|R001    	    |Electricity             |
+|R003    	    |Natural Gas			       |
+
+
+```{r}
+df_hsd_expenses_energy <- subset(df_hsd_expenses, clave=="G009" | clave=="G010" | 
+                                   clave=="G011" | clave=="G012" | clave=="G013" | 
+                                   clave=="G014" | clave=="G015" | clave=="G016" | 
+                                   clave =='R001' | clave =='R003')
+
+df_person_expenses_energy <- subset(df_person_expenses, clave=="G009" | clave=="G010" | 
+                                   clave=="G011" | clave=="G012" | clave=="G013" | 
+                                   clave=="G014" | clave=="G015" | clave=="G016" | 
+                                   clave =='R001' | clave =='R003')
+```
+
+
+Merging data sets by folioviv using energy expenses related data
+```{r}
+library(dplyr)
+
+hsd_expenses_by_folio <- df_hsd_expenses_energy %>%
+  group_by(folioviv) %>% replace(is.na(.), 0) %>% 
+  summarise(gasto_tri = sum(gasto_tri)
+)
+
+person_expenses_by_folio <- df_person_expenses_energy %>%
+  group_by(folioviv) %>% replace(is.na(.), 0) %>% 
+  summarise(gasto_tri = sum(gasto_tri)
+)
+
+
+df_hsd_condens_energy <- subset(df_hsd_condens, select=c('folioviv','energia')) %>%
+  group_by(folioviv) %>% replace(is.na(.), 0) %>% 
+  summarise(energia = sum(energia))
+       
+df_merge <- merge(df_hsd_condens_energy, person_expenses_by_folio,by="folioviv", 
+                  all.x = TRUE) %>% 
+  replace(is.na(.), 0)
+
+df_merge <- merge(df_merge, hsd_expenses_by_folio, by="folioviv", all.x = TRUE) %>% 
+  replace(is.na(.), 0)
+
+df_merge$sum_gastotri <- df_merge$gasto_tri.x + df_merge$gasto_tri.y
+df_merge$diff <- df_merge$sum_gastotri - df_merge$energia
+df_merge$diff[abs(df_merge$diff) <= 0.0001] <- 0 
+
+df_merge
+```
+
+```{r}
+descr(df_merge, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+
