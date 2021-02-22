@@ -1,11 +1,13 @@
 ---
-title: "R Notebook"
+title: "Organizing ENIGH Household data"
 author: "Mauricio Hernandez"
 date: "2/20/2021"
 output: html_notebook
 ---
 
 Follow convention https://www.r-bloggers.com/2019/01/%F0%9F%96%8A-r-coding-style-guide
+
+Take data from INEGI 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -156,5 +158,10 @@ descr(df_hshd, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.vali
 
 
 ```{r}
-write.csv(df_hshd, file = 'outputs/2018_enigh_households.csv')
+#These values are stored in the dwelling table
+df_hshd <- subset(df_hshd, select= c(-state_code, -urbanization, -upm, -ten_surv, -consecutive_dwell))
+
+
+write.csv(df_hshd, file = 'outputs/2018_enigh_households.csv', na = "NULL", 
+          fileEncoding="UTF-8", row.names=FALSE)
 ```
