@@ -38,5 +38,8 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# exclude everything in the input folder
+# exclude everything in the input and output folder
 /inputs/*
+/outputs/*
+/scripts/*
+/figs/*
