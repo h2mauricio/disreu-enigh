@@ -37,13 +37,8 @@ path.data <- "https://mauricioh2.com/disreu/inegi/enigh/"
 #                    col_types=c("folioviv"="c", 'estufa_chi'='i'), na ='&')
 
 df_dwell <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), col_names = TRUE,
-<<<<<<< HEAD
                    col_types=c("folioviv"="c", "estufa_chi"= 'i', 'mat_techos' ='i', 
                                'num_dueno1' ='i', 'num_dueno2' ='i'), na ='&')
-=======
-                   col_types=c("folioviv"="c", "estufa_chi"= 'i', 'mat_techos' ='i'), na ='&')
->>>>>>> e9172dd1348022f02a6d10150afb85c28f1f9cdf
-
 ```
 
 ```{r}

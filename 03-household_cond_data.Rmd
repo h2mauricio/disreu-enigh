@@ -12,6 +12,10 @@ output:
 #Remove all objects from current workspace and call garbage collector
 rm(list=ls())
 gc()
+
+#Set WD
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
 ```
 
 ```{r sh, include=FALSE}
@@ -159,10 +163,10 @@ df_person_exp_energy <- subset(df_person_exp, clave=="G009" | clave=="G010" |
 
 ```{r}
 
-write.csv(df_hsd_exp_energy, file = 'outputs/2018_enigh_hsd_energy_expenses.csv',
+write.csv(df_hsd_exp_energy, file = 'outputs/2018_enigh_hsd_energy_exp.csv',
           na = "NULL", fileEncoding="UTF-8", row.names=FALSE)
 
-write.csv(df_person_exp_energy, file = 'outputs/2018_enigh_person_energy_expenses.csv',
+write.csv(df_person_exp_energy, file = 'outputs/2018_enigh_psn_energy_exp.csv',
           na = "NULL", fileEncoding="UTF-8", row.names=FALSE)
 ```
 
@@ -217,16 +221,6 @@ df_person_exp_electricity <- subset(df_person_exp,clave =='R001')
 ```
 
 
-```{r}
-pl.hist.bill.days1 <- plot_ly(x = df.enc.dwell$bill.days1,
-             type = "histogram",
-             histnorm = "probability")%>%
-  layout(title = 'Distribution of Days Billed by CFE',
-         xaxis = list(title = "days", range = c(0, 100)), 
-         yaxis = list(title = "Probability"))
-
-```
-
 ```{r plt-bill1-days, fig.cap="Energy Expenses", warning=FALSE, message=FALSE, results="hold"}
 
 df_dummy <- subset(df_hsd_exp_energy, select=c('clave','gasto_tri')) %>%
@@ -254,19 +248,3 @@ pl_enegy_exp
 
 plotly_IMAGE(pl_enegy_exp, format = "png", out_file = "./figs/energy_expenses.png" )
 ```
-
-```{r}
-library(plotly)
-#df_hsd_exp_energy$clave
-#df_hsd_exp_energy$gasto_tri
-
-fig <- plot_ly(
-  x = c("giraffes", "orangutans", "monkeys"),
-  y = c(20, 14, 23),
-  name = "SF Zoo",
-  type = "bar"
-)
-
-fig
-```
-
