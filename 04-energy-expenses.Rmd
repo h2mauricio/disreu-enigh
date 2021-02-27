@@ -22,26 +22,20 @@ setwd(dirname(current_path ))
 source("./scripts/setup_functions.R")
 ```
 
-```{r knitr_init, include=FALSE}
-#options(max.print = "75")
-opts_chunk$set(echo = TRUE,
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
 	             cache = FALSE,
                prompt = FALSE,
                tidy = FALSE,
                comment = NA,
                message = FALSE,
                warning = FALSE,
+	             fig.width = 8, 
+	             collapse = TRUE,
                fig.path = 'figs/')
 ```
 
-```{r, include=FALSE}
-#Generates the css needed by summarytools
-st_css()
-```
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.width = 8, collapse = TRUE)
-
+```{r knitr_init, include=FALSE}
 knitr::knit_hooks$set(output = function(x, options){
   if(!is.null(options$max_height)){
     paste('<pre style = "max-height:',
@@ -64,17 +58,22 @@ print( getwd() )
 #Load Packages
 if (!require("pacman")) install.packages("pacman")
   pacman::p_load(pacman, party, psych, rio, tidyverse, knitr, bit64, plotly, 
-                 forcats, stargazer, summarytools)
+                 forcats, stargazer, summarytools, survey, scales)
 
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 ```
 
 
+```{r, include=FALSE}
+#Generates the css needed by summarytools
+st_css()
+```
+
 ## Reading ENIGH microdata (CSV files)
 ```{r include = TRUE, echo = FALSE,  results='hide'}
 path_data <- "https://mauricioh2.com/disreu/inegi/enigh/"
 
-df_dwell <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), col_names = TRUE,
+df_dwell <-read_csv(paste0(path_data, "2018_enigh_viviendas.csv"), col_names = TRUE,
                    col_types=c("folioviv"="c", "estufa_chi"= 'i', 'mat_techos' ='i', 
                                'num_dueno1' ='i', 'num_dueno2' ='i'), na ='&')
 
@@ -103,6 +102,7 @@ df_person_energy <-read_csv('./outputs/2018_enigh_psn_energy_exp.csv',col_names 
                                'material' = 'd', 'inscrip' = 'd', 'gasto_tri'= 'd'), 
                    na ='NULL',)
 ```
+
 ## Check Energy Expenses
 
 Check all the energy expenses in the households expenses data set and people expenses data sets are the same than the ones reported in the households condensed data set.
@@ -133,9 +133,8 @@ df_person_energy$id_household <- paste0(df_person_energy$folioviv, df_person_ene
 ```
 
 
-
-Merging data sets by id_household using energy expenses related data
-```{r}
+Grouping data sets by household id and expense id (clave)
+```{r, results='hide'}
 df_hsd_energy_by_hsd <- df_hsd_energy %>%
   group_by(id_household, clave) %>% replace(is.na(.), 0) %>% 
   summarise(gasto_tri = sum(gasto_tri))
@@ -143,21 +142,21 @@ df_hsd_energy_by_hsd <- df_hsd_energy %>%
 df_psn_energy_by_hsd <- df_person_energy %>%
   group_by(id_household, clave) %>% replace(is.na(.), 0) %>% 
   summarise(gasto_tri = sum(gasto_tri))
+
+head(df_hsd_energy_by_hsd)
+head(df_psn_energy_by_hsd)
 ```
+Merging data sets by id_household using energy expenses related data
 ```{r}
 df_energy_by_hsd <- merge(df_hsd_energy_by_hsd, df_psn_energy_by_hsd, 
                           by="id_household", all.y = TRUE, all.x = TRUE) %>% 
   replace(is.na(.), 0)
-
 ```
 
-
+Reshaping data
 ```{r}
 df_hsd_energy_by_hsd <- as.data.frame(df_hsd_energy_by_hsd)
-df_hsd_energy_by_hsd
-```
 
-```{r}
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='G009'] <- 'LPG'
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='G010'] <- 'Petroleum'
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='G011'] <- 'Diesel'
@@ -168,21 +167,36 @@ df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='G015'] <- 'Candles'
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='G016'] <- 'Other'
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='R001'] <- 'Electricity'
 df_hsd_energy_by_hsd$clave[df_hsd_energy_by_hsd$clave=='R003'] <- 'NG'
-```
 
-```{r}
 #df_hsd_energy_by_hsd$clave <-as.factor(df_hsd_energy_by_hsd$clave)
 df_hsd_by_hsd_wd <- reshape(df_hsd_energy_by_hsd, v.names = 'gasto_tri',
                             timevar='clave', idvar="id_household", sep = "_",
                             direction="wide")
+#Change columns names 
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_LPG')] <- 'LPG'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Petroleum')] <- 'Petroleum'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Diesel')] <- 'Diesel'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Carbon')] <- 'Carbon'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Firewood')] <- 'Firewood'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Fuel_to_heat')] <- 'Fuel_to_heat'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Candles')] <- 'Candles'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Other')] <- 'Other'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_Electricity')] <- 'Electricity'
+colnames(df_hsd_by_hsd_wd)[which(names(df_hsd_by_hsd_wd) == 'gasto_tri_NG')] <- 'NG'
 
 df_hsd_by_hsd_wd
 ```
 
+Store data of energy expenses by household
+```{r}
+write.csv(df_hsd_by_hsd_wd, file = 'outputs/2018_enigh_ener-exp_hsd_wide.csv',
+          fileEncoding="UTF-8", row.names=FALSE)
+```
+
 ## Descriptive Statistics
 ```{r}
-descr(df_hsd_by_hsd_wd, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
-      transpose = TRUE)
+descr(df_hsd_by_hsd_wd, stats = c("mean", "sd", "min", "med", "max", "n.valid", 
+                                  "pct.valid"), transpose = TRUE)
 ```
 
 ### Box Plots
@@ -193,25 +207,25 @@ pal_plot <- setNames(pal_plot, c("elect", "ng", "candles", "lpg"))
 #df_hsd_by_hsd_wd[is.na(df_hsd_by_hsd_wd)] = 0
 
 pl_energy_exp_box <- plot_ly(type = 'box') %>%
-  add_boxplot(y = df_hsd_by_hsd_wd$gasto_tri_Electricity, 
+  add_boxplot(y = df_hsd_by_hsd_wd$Electricity, 
               boxpoints = 'outliers', 
               name = "Electricity", 
               color = list(color =pal_plot['elect']),
               marker = list(color = pal_plot['elect']), 
               line=list(color = pal_plot['elect']) ) %>%
-  add_boxplot(y = df_hsd_by_hsd_wd$gasto_tri_NG, 
+  add_boxplot(y = df_hsd_by_hsd_wd$NG, 
               boxpoints = 'outliers', 
               name = "Natural Gas", 
               color = list(color =pal_plot['ng']),
               marker = list(color = pal_plot['ng']), 
               line=list(color = pal_plot['ng']) ) %>%
-  add_boxplot(y = df_hsd_by_hsd_wd$gasto_tri_Candles, 
+  add_boxplot(y = df_hsd_by_hsd_wd$Candles, 
               boxpoints = 'outliers', 
               name = "Candles", 
               color = list(color =pal_plot['candles']),
               marker = list(color = pal_plot['candles']), 
               line=list(color = pal_plot['candles']) ) %>%
-  add_boxplot(y = df_hsd_by_hsd_wd$gasto_tri_LPG, 
+  add_boxplot(y = df_hsd_by_hsd_wd$LPG, 
               boxpoints = 'outliers', 
               name = "LPG", 
               color = list(color =pal_plot['lpg']),
@@ -227,15 +241,217 @@ plotly_IMAGE(pl_energy_exp_box, format = "png", out_file = "./figs/box_energy_ex
 ```
 # Analysis of Expenses by Dwelling
 
-Adding factor
 
-```{r}
-df_hshd$id_household <- paste0(df_hshd$folioviv, df_hshd$foliohog)
+Grouping data sets by dwelling id and expense id (clave)
+```{r, results ='hide'}
+df_hsd_energy_by_dwell <- df_hsd_energy %>%
+  group_by(folioviv, clave) %>% replace(is.na(.), 0) %>% 
+  summarise(gasto_tri = sum(gasto_tri))
 
-df_hshd <- subset(df_hshd, select=c('id_household', 'factor'))
+df_psn_energy_by_dwell <- df_person_energy %>%
+  group_by(folioviv, clave) %>% replace(is.na(.), 0) %>% 
+  summarise(gasto_tri = sum(gasto_tri))
 
-df_hsd_by_hsd_wd <- merge(df_hsd_by_hsd_wd, df_hshd, 
-                          by="id_household", all.y = TRUE, all.x = TRUE)
+head(df_hsd_energy_by_dwell)
+head(df_psn_energy_by_dwell)
 ```
 
 
+Merging data sets by id_household using energy expenses related data
+```{r}
+df_energy_by_dwell <- merge(df_hsd_energy_by_dwell, df_psn_energy_by_dwell, 
+                          by="folioviv", all.y = TRUE, all.x = TRUE) %>% 
+  replace(is.na(.), 0)
+
+```
+
+Reshaping data
+```{r}
+df_hsd_energy_by_dwell <- as.data.frame(df_hsd_energy_by_dwell)
+
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G009'] <- 'LPG'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G010'] <- 'Petroleum'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G011'] <- 'Diesel'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G012'] <- 'Carbon'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G013'] <- 'Firewood'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G014'] <- 'Fuel_to_heat'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G015'] <- 'Candles'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='G016'] <- 'Other'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='R001'] <- 'Electricity'
+df_hsd_energy_by_dwell$clave[df_hsd_energy_by_dwell$clave=='R003'] <- 'NG'
+
+#df_hsd_energy_by_dwell$clave <-as.factor(df_hsd_energy_by_dwell$clave)
+df_hsd_by_dwell_wd <- reshape(df_hsd_energy_by_dwell, v.names = 'gasto_tri',
+                            timevar='clave', idvar="folioviv", sep = "_",
+                            direction="wide")
+#Change columns names 
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_LPG')] <- 'LPG'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Petroleum')] <- 'Petroleum'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Diesel')] <- 'Diesel'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Carbon')] <- 'Carbon'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Firewood')] <- 'Firewood'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Fuel_to_heat')] <- 'Fuel_to_heat'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Candles')] <- 'Candles'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Other')] <- 'Other'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_Electricity')] <- 'Electricity'
+colnames(df_hsd_by_dwell_wd)[which(names(df_hsd_by_dwell_wd) == 'gasto_tri_NG')] <- 'NG'
+
+df_hsd_by_dwell_wd
+```
+
+Adding weighting factor linked to the representation of dwellings
+```{r, results = 'hide'}
+df_dwell_factors <- subset(df_dwell, select=c('folioviv', 'est_socio', 'tam_loc', 
+                                              'est_dis', 'upm', 'factor'))
+
+df_hsd_by_dwell_wd <- merge(df_hsd_by_dwell_wd, df_dwell_factors, 
+                          by="folioviv", all.y = TRUE, all.x = TRUE)
+head(df_hsd_by_dwell_wd)
+```
+
+## Descriptive Statistics
+```{r}
+descr(df_hsd_by_dwell_wd, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"),
+      weights = df_hsd_by_dwell_wd$factor,
+      transpose = TRUE)
+```
+
+### Box Plots
+```{r plt-exp-dwell-box, fig.cap="Boxplots of energy expenses per dwelling", results="hold"}
+pal_plot <- c('grey','red', 'rgb(7,40,89)', 'green')
+pal_plot <- setNames(pal_plot, c("elect", "ng", "candles", "lpg"))
+
+#df_hsd_by_dwell_wd[is.na(df_hsd_by_dwell_wd)] = 0
+
+pl_energy_exp_box <- plot_ly(type = 'box') %>%
+  add_boxplot(y = df_hsd_by_dwell_wd$Electricity, 
+              boxpoints = 'outliers', 
+              name = "Electricity", 
+              color = list(color =pal_plot['elect']),
+              marker = list(color = pal_plot['elect']), 
+              line=list(color = pal_plot['elect']) ) %>%
+  add_boxplot(y = df_hsd_by_dwell_wd$NG, 
+              boxpoints = 'outliers', 
+              name = "Natural Gas", 
+              color = list(color =pal_plot['ng']),
+              marker = list(color = pal_plot['ng']), 
+              line=list(color = pal_plot['ng']) ) %>%
+  add_boxplot(y = df_hsd_by_dwell_wd$Candles, 
+              boxpoints = 'outliers', 
+              name = "Candles", 
+              color = list(color =pal_plot['candles']),
+              marker = list(color = pal_plot['candles']), 
+              line=list(color = pal_plot['candles']) ) %>%
+  add_boxplot(y = df_hsd_by_dwell_wd$LPG, 
+              boxpoints = 'outliers', 
+              name = "LPG", 
+              color = list(color =pal_plot['lpg']),
+              marker = list(color = pal_plot['lpg']), 
+              line=list(color = pal_plot['lpg']) ) %>%
+  layout(title = "Boxplots of Expenses per  Dwelling by Type of Energy", 
+         yaxis = list(title = "$[MXN]", range = c(0, 5000)))
+
+pl_energy_exp_box
+
+plotly_IMAGE(pl_energy_exp_box, format = "png", out_file = "./figs/box_energy_exp_byDwell.png" )
+
+```
+Store data of energy expenses by dwelling
+```{r}
+write.csv(df_hsd_by_dwell_wd, file = 'outputs/2018_enigh_ener-exp_dwell_wide.csv',
+          fileEncoding="UTF-8", row.names=FALSE)
+```
+
+## Survey Design
+```{r}
+df_dwell$tam_loc<- factor(df_dwell$tam_loc,
+                   levels = c(1, 2, 3, 4),
+                   labels = c(">=100k", "15K-100k", "2.5K-15K", "<2.5K") )
+
+df_dwell$est_socio<- factor(df_dwell$est_socio,
+                   levels = c(1, 2, 3, 4),
+                   labels = c("low", "med-low", "med-high", "high") )
+```
+
+
+```{r, results = 'hide'}
+df_hsd_by_dwell_wd$upm <- NULL
+df_hsd_by_dwell_wd$factor <- NULL
+df_hsd_by_dwell_wd$est_dis <- NULL
+df_hsd_by_dwell_wd$tam_loc <- NULL
+df_hsd_by_dwell_wd$est_socio <- NULL
+
+df_dwell_sub <- subset(df_dwell, select=c('folioviv', 'est_socio', 'tam_loc', 
+                                                    'upm', 'factor', 'est_dis'))
+head(df_dwell_sub)
+
+df_energy_by_folio <- merge(df_dwell_sub, df_hsd_by_dwell_wd, 
+                          by="folioviv", all.y = TRUE, all.x = TRUE) %>% 
+  replace(is.na(.), 0)
+
+head(df_energy_by_folio)
+```
+
+```{r, results='hide'}
+#Using Survey Design Construction
+svd_dwell <- svydesign(id=~upm, strata=~est_dis, 
+                 data=df_energy_by_folio, weights=~factor)
+
+#Information about the survey design
+
+class(svd_dwell)
+
+#View the number of unique PSUs (clusters) in this survey design, by referring 
+# to the clu column from the original data.frame:
+length(unique(df_energy_by_folio$upm))
+
+#View the number of unique strata in this survey design, by referring to the 
+# est_dis column from the original data.frame:
+length(unique(df_energy_by_folio$est_dis))
+```
+
+
+```{r}
+tb_mean_energy  <- svyby(~Electricity, ~est_socio + tam_loc, svd_dwell, svymean, keep.var=TRUE)
+tb_mean_energy
+```
+
+tb.mean.ing.exp.soc.mun <- svyby(~ing_cor + gasto_mon, ~est_socio + tam_loc, svd.household, svymean, keep.var=TRUE)
+#tb.mean.ing.exp.soc.mun
+
+```{r}
+# Convert it to a table
+tb_mean_energy %>% 
+  ftable() %>%
+  round(3)
+
+```
+
+```{r}
+df_mean_energy_bytamloc <- tb_mean_energy %>% 
+  group_by(tam_loc) 
+df_mean_energy_bytamloc
+```
+
+```{r, fig.height=6, dev='jpeg', fig.path = 'figs/'}
+colnames(df_mean_energy_bytamloc)[which(names(df_mean_energy_bytamloc) == 'est_socio')] <- 'Socioeconomic_Status'
+
+colnames(df_mean_energy_bytamloc)[which(names(df_mean_energy_bytamloc) == 'tam_loc')] <- 'Municipality_Size'
+
+
+#tb.mean.ing.exp.soc.mun$est_socio
+p <- ggplot(df_mean_energy_bytamloc, aes(x=Municipality_Size, y=Electricity, 
+                                    ymin = Electricity-se, ymax = Electricity+se,
+                                    fill=Socioeconomic_Status)) + 
+  geom_bar(stat = "identity", position=position_dodge()) + 
+  geom_errorbar(position=position_dodge()) + 
+  scale_fill_brewer(palette="Greens") +
+  scale_y_continuous(name="Electricity Expenses [MXN]", labels=dollar) +
+  ggtitle("Quarterly Expense in Electricity per Dwelling")
+
+p <- p + theme(plot.title = element_text(color="black", size=16, face="bold"))
+p
+
+#ggsave("mtcars.pdf", width = 4, height = 4)
+ggsave("./figs/ElectricityExpenses.png", width = 8, height = 6, units = "in")
+```
