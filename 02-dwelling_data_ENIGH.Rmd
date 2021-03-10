@@ -41,13 +41,19 @@ df_dwell <-read_csv(paste0(path.data, "2018_enigh_viviendas.csv"), col_names = T
                                'num_dueno1' ='i', 'num_dueno2' ='i'), na ='&')
 ```
 
+
+```{r, include= FALSE}
+str(df_dwell)
+```
+
+
 ```{r}
 head(df_dwell)
 ```
 
 
 ## Organizing Household data
-# attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
+Attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
 
 ```{r}
 df_dwell <- as_tibble(df_dwell) %>%
@@ -114,7 +120,6 @@ tail(subset(df_dwell, select=c('ubica_geo', 'ubica_geo_state', 'ubica_geo_munic'
 str(df_dwell)
 ```
 
-<<<<<<< HEAD
 
 ```{r}
 # if urban, urbanization code different from 6; rural, code 6
@@ -159,9 +164,6 @@ descr(df_dwell, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.val
       transpose = TRUE)
 ```
 
-
-=======
->>>>>>> e9172dd1348022f02a6d10150afb85c28f1f9cdf
 ```{r}
 write.csv(df_dwell, file = 'outputs/2018_enigh_dwellings.csv', na = "NULL", 
           fileEncoding="UTF-8", row.names=FALSE)

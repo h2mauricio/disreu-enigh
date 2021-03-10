@@ -54,7 +54,7 @@ df_hshd <-read_csv(paste0(path.data, "2018_enigh_hogares.csv"), col_names = TRUE
 
 
 ## Organizing Household data
-# attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
+Attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
 
 ```{r}
 df_hshd <- as_tibble(df_hshd) %>%
