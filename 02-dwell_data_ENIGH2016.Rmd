@@ -1,0 +1,164 @@
+---
+title: "Organizing ENIGH Dwelling Data"
+author: "Mauricio Hernandez"
+date: "2/21/2021"
+output: html_notebook
+---
+
+Follow convention https://www.r-bloggers.com/2019/01/%F0%9F%96%8A-r-coding-style-guide
+
+Take data from INEGI 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Clear memory
+rm(list=ls())
+
+#Set WD
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
+print( getwd() )
+
+#Load Packages
+if (!require("pacman")) install.packages("pacman")
+  pacman::p_load(pacman, party, psych, rio, tidyverse, plyr, knitr, bit64, 
+                 forcats, stargazer, summarytools)
+
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+## Reading ENIGH microdata CSV files
+```{r include= TRUE, echo = FALSE}
+path.data <- "https://mauricioh2.com/disreu/inegi/enigh/"
+
+df_dwell <-read_csv(paste0(path.data, "2016_enigh_viviendas.csv"), col_names = TRUE,
+                   col_types=c("folioviv"="c", "estufa_chi"= 'i', 'mat_techos' ='i', 
+                               'num_dueno1' ='i', 'num_dueno2' ='i'), na ='&')
+```
+
+
+```{r, include= FALSE}
+str(df_dwell)
+```
+
+
+```{r}
+head(df_dwell)
+```
+
+
+## Organizing Household data
+Attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
+
+Note: Variable "procaptar" doesn't exist in this dataset
+```{r}
+df_dwell <- as_tibble(df_dwell) %>%
+  select("folioviv", "tipo_viv", "mat_pared", "mat_techos", "mat_pisos", 
+         "antiguedad", "antigua_ne", "cocina","cocina_dor", "cuart_dorm", 
+         "num_cuarto", "disp_agua", "dotac_agua", "excusado", "uso_compar", 
+         "sanit_agua", "biodigest", "bano_comp", "bano_excus", "bano_regad", 
+         "drenaje", "disp_elect", "focos_inca", "focos_ahor",
+         "combustible", "estufa_chi", "tenencia", "renta", "estim_pago", "pago_viv", 
+         "tipo_adqui", "viv_usada", "tipo_finan","num_dueno1", "lavadero", "fregadero", 
+         "regadera", "tinaco_azo", "cisterna", "pileta", "calent_sol", "calent_gas", 
+         "medidor_luz", "bomba_agua", "tanque_gas", "aire_acond", "calefacc", "tot_resid", 
+         "tot_hom", "tot_muj", "tot_hog", "ubica_geo", "tam_loc", "est_socio", "est_dis", 
+         "upm", "factor")
+
+df_dwell$folioviv_state_code <- substr(df_dwell$folioviv, 1, 2) %>% strtoi(base = 10L)
+df_dwell$folioviv_urban <- substr(df_dwell$folioviv, 3, 3) %>% strtoi(base = 10L)
+df_dwell$folioviv_upm <- substr(df_dwell$folioviv, 4, 7) %>% strtoi(base = 10L)
+df_dwell$folioviv_ten_surv <- substr(df_dwell$folioviv, 8, 8) %>% strtoi(base = 10L)
+df_dwell$folioviv_consec_dwell <- substr(df_dwell$folioviv, 9, 10) %>% strtoi(base = 0L)
+
+# Create/convert the new variable state into a factor, and assign name of the state as label
+df_dwell$state <- factor(df_dwell$folioviv_state_code, 
+                     levels = c("1", "2", "3", "4", "5", "6", "7", 
+                                "8", "9", "10","11", "12", "13", "14", 
+                                "15", "16", "17", "18", "19", "20", 
+                                "21", "22", "23", "24", "25", "26", 
+                                "27", "28", "29", "30", "31", "32"),
+                     labels = c("Aguascalientes", "Baja California", 
+                                "Baja California Sur", "Campeche", 
+                                "Coahuila", "Colima", "Chiapas", 
+                                "Chihuahua", "Mexico City", 
+                                "Durango", "Guanajuato", "Guerrero", 
+                                "Hidalgo", "Jalisco", "Mexico", 
+                                "Michoacan", "Morelos", "Nayarit", 
+                                "Nuevo Leon", "Oaxaca", "Puebla", 
+                                "Queretaro", "Quintana Roo", 
+                                "San Luis Potosi", "Sinaloa", 
+                                "Sonora", "Tabasco", "Tamaulipas", 
+                                "Tlaxcala", "Veracruz", "Yucatan", 
+                                "Zacatecas"))
+```
+
+
+
+Contiene la ubicación geográfica de la vivienda. 
+Los dos primeros dígitos representan la clave  de la entidad y los siguientes tres la clave del 
+municipio. Éstas corresponden al Catálogo de claves de entidades federativas, municipios y localidades, que está disponible en el sitio del INEGI.
+
+Contains the geographic location of the dwelling.
+The first two digits represent the entity's key and the next three the entity's key.
+municipality. These correspond to the Catalog of codes for states, municipalities and localities, which is available on INEGI's website.
+
+
+```{r}
+df_dwell$ubica_geo_state <- substr(df_dwell$ubica_geo, 1, 2) %>% strtoi(base = 10L)
+df_dwell$ubica_geo_munic <- substr(df_dwell$ubica_geo, 3, 5) %>% strtoi(base = 10L)
+
+#head(df_dwell, c('ubica_geo', 'ubica_geo_state', 'ubica_geo_munic'))
+
+tail(subset(df_dwell, select=c('ubica_geo', 'ubica_geo_state', 'ubica_geo_munic')))
+```
+
+
+```{r}
+# if urban, urbanization code different from 6; rural, code 6
+# In new attribute rural, 1 if rural, 0 = urban
+df_dwell$rural <- NA
+df_dwell <- within(df_dwell, rural[folioviv_urban!=6] <- 0)
+df_dwell <- within(df_dwell, rural[folioviv_urban==6] <- 1)                 
+count(df_dwell, 'rural')
+
+# Changing yes/no questions, in the original data of the survey yes =1, no = 2, 
+# here yes = 1, no = 0
+df_dwell$cocina[df_dwell$cocina == 2] <- 0
+df_dwell$cocina_dor[df_dwell$cocina_dor == 2] <- 0
+df_dwell$excusado[df_dwell$excusado == 2] <- 0
+df_dwell$uso_compar[df_dwell$uso_compar == 2] <- 0
+df_dwell$biodigest[df_dwell$biodigest == 2] <- 0
+df_dwell$estufa_chi[df_dwell$estufa_chi == 2] <- 0
+
+df_dwell$viv_usada[df_dwell$viv_usada == 2] <- 0
+df_dwell$lavadero[df_dwell$lavadero == 2] <- 0
+df_dwell$fregadero[df_dwell$fregadero == 2] <- 0
+df_dwell$regadera[df_dwell$regadera == 2] <- 0
+df_dwell$tinaco_azo[df_dwell$tinaco_azo == 2] <- 0
+df_dwell$cisterna[df_dwell$cisterna == 2] <- 0
+df_dwell$pileta[df_dwell$pileta == 2] <- 0
+df_dwell$calent_sol[df_dwell$calent_sol == 2] <- 0
+df_dwell$calent_gas[df_dwell$calent_gas == 2] <- 0
+
+df_dwell$medidor_luz[df_dwell$medidor_luz == 2] <- 0
+df_dwell$bomba_agua[df_dwell$bomba_agua == 2] <- 0
+df_dwell$tanque_gas[df_dwell$tanque_gas == 2] <- 0
+df_dwell$aire_acond[df_dwell$aire_acond == 2] <- 0
+df_dwell$calefacc[df_dwell$calefacc == 2] <- 0
+```
+
+```{r}
+head(subset(df_dwell, select=c(folioviv, num_dueno1, ubica_geo, est_dis, upm, state)))
+```
+
+```{r}
+descr(df_dwell, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+
+```{r}
+write.csv(df_dwell, file = 'outputs/2016_enigh_dwellings.csv', na = "NULL", 
+          fileEncoding="UTF-8", row.names=FALSE)
+```

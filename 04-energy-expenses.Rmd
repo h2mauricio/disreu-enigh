@@ -447,7 +447,7 @@ p <- ggplot(df_mean_energy_bytamloc, aes(x=Municipality_Size, y=Electricity,
   geom_errorbar(position=position_dodge()) + 
   scale_fill_brewer(palette="Greens") +
   scale_y_continuous(name="Electricity Expenses [MXN]", labels=dollar) +
-  ggtitle("Quarterly Expense in Electricity per Dwelling")
+  ggtitle("Quarterly Expenses in Electricity per Dwelling in 2018")
 
 p <- p + theme(plot.title = element_text(color="black", size=16, face="bold"))
 p

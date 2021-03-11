@@ -1,0 +1,163 @@
+---
+title: "Organizing ENIGH Household Data for 2016"
+author: "Mauricio Hernandez"
+date: "3/10/2021"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Clear memory
+rm(list=ls())
+
+#Set WD
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
+print( getwd() )
+
+#Load Packages
+if (!require("pacman")) install.packages("pacman")
+  pacman::p_load(pacman, party, psych, rio, tidyverse, plyr, knitr, bit64, 
+                 forcats, stargazer, summarytools)
+
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+## Reading ENIGH microdata CSV files
+```{r include= TRUE, echo = FALSE}
+path.data <- "https://mauricioh2.com/disreu/inegi/enigh/"
+
+
+df_hshd <-read_csv(paste0(path.data, "2016_enigh_hogares.csv"), col_names = TRUE,
+                   col_types=c("folioviv"="c", "foliohog"="c", 'anio_carret'='i', 
+                               'anio_otro'='i', 'trab_come' ='i', 'huesp_come'='i', 
+                               'anio_auto' = 'i', 'anio_van' = 'i', 
+                               'anio_pickup' = 'i', 'anio_moto' = 'i', 
+                               'anio_bici' = 'i', 'anio_trici' = 'i', 
+                               'anio_canoa' = 'i', 'anio_ester' = 'i', 
+                               'anio_grab' = 'i', 'anio_radio' = 'i', 
+                               'anio_tva' = 'i', 'anio_tvd' = 'i', 
+                               'anio_dvd' = 'i', 'anio_video' = 'i', 
+                               'anio_licua' = 'i', 'anio_tosta' = 'i', 
+                               'anio_micro' = 'i', 'anio_refri' = 'i', 
+                               'anio_estuf' = 'i', 'anio_lavad' = 'i', 
+                               'anio_planc' = 'i', 'anio_maqui' = 'i', 
+                               'anio_venti' = 'i', 'anio_aspir' = 'i', 
+                               'anio_compu' = 'i', 'anio_impre' = 'i',
+                               'nr_viv' = 'i',
+                               'anio_juego'='i'), na ='&')
+```
+
+
+## Organizing Household data
+Attribute folioviv is the identifier of the dwelling. It is made up of two digits with the federal entity code, one digit with the scope (urban, code different from 6; rural, code 6), four digits of the consecutive number of the upm, one digit of the ten of survey and two digits with a consecutive number for the selected dwelling.
+
+```{r}
+df_hshd <- as_tibble(df_hshd) %>%
+  select("folioviv", "foliohog", "huespedes", "huesp_come", "num_trab_d", "trab_come", "telefono", "celular", "tv_paga", "conex_inte", "num_auto", "anio_auto", "num_van", "anio_van", "num_pickup", "anio_pickup", "num_moto", "anio_moto", "num_bici", "anio_bici", "num_trici", "anio_trici", "num_carret", "anio_carret", "num_canoa", "anio_canoa", "num_otro", "anio_otro", "num_ester", "anio_ester", "num_grab", "anio_grab", "num_radio", "anio_radio", "num_tva", "anio_tva", "num_tvd", "anio_tvd", "num_dvd", "anio_dvd", "num_video", "anio_video", "num_licua", "anio_licua", "num_tosta", "anio_tosta", "num_micro", "anio_micro", "num_refri", "anio_refri", "num_estuf", "anio_estuf", "num_lavad", "anio_lavad", "num_planc", "anio_planc", "num_maqui", "anio_maqui", "num_venti", "anio_venti", "num_aspir", "anio_aspir", "num_compu", "anio_compu", "num_impre", "anio_impre", "num_juego", "anio_juego", "esc_radio", "er_aparato", "er_celular", "er_compu", "er_aplicac", "er_tv", "er_otro", "recib_tvd")
+
+
+df_hshd$state_code <- substr(df_hshd$folioviv, 1, 2) %>% strtoi(base = 10L)
+df_hshd$urbanization <- substr(df_hshd$folioviv, 3, 3) %>% strtoi(base = 10L)
+df_hshd$upm <- substr(df_hshd$folioviv, 4, 7) %>% strtoi(base = 10L)
+df_hshd$ten_surv <- substr(df_hshd$folioviv, 8, 8) %>% strtoi(base = 10L)
+df_hshd$consecutive_dwell <- substr(df_hshd$folioviv, 9, 10) %>% strtoi(base = 0L)
+
+# Create/convert the new variable state into a factor, and assign name of the state as label
+df_hshd$state <- factor(df_hshd$state_code, 
+                     levels = c("1", "2", "3", "4", "5", "6", "7", 
+                                "8", "9", "10","11", "12", "13", "14", 
+                                "15", "16", "17", "18", "19", "20", 
+                                "21", "22", "23", "24", "25", "26", 
+                                "27", "28", "29", "30", "31", "32"),
+                     labels = c("Aguascalientes", "Baja California", 
+                                "Baja California Sur", "Campeche", 
+                                "Coahuila", "Colima", "Chiapas", 
+                                "Chihuahua", "Mexico City", 
+                                "Durango", "Guanajuato", "Guerrero", 
+                                "Hidalgo", "Jalisco", "Mexico", 
+                                "Michoacan", "Morelos", "Nayarit", 
+                                "Nuevo Leon", "Oaxaca", "Puebla", 
+                                "Queretaro", "Quintana Roo", 
+                                "San Luis Potosi", "Sinaloa", 
+                                "Sonora", "Tabasco", "Tamaulipas", 
+                                "Tlaxcala", "Veracruz", "Yucatan", 
+                                "Zacatecas"))
+```
+
+
+```{r, include= FALSE}
+str(df_hshd)
+```
+
+
+```{r}
+# if urban, urbanization code different from 6; rural, code 6
+# In new attribute rural, 1 if rural, 0 = urban
+df_hshd$rural <- NA
+df_hshd <- within(df_hshd, rural[urbanization!=6] <- 0)
+df_hshd <- within(df_hshd, rural[urbanization==6] <- 1)                 
+count(df_hshd, 'rural')
+
+# Create household id, this will be the key attribute in the SQL table
+df_hshd$id_household <- paste0(df_hshd$folioviv, df_hshd$foliohog)
+head(df_hshd$id_household)
+
+# Changing yes/no questions, in the original data of the survey yes =1, no = 2, 
+# here yes = 1, no = 0
+df_hshd$telefono[df_hshd$telefono == 2] <- 0
+df_hshd$celular[df_hshd$celular == 2] <- 0
+df_hshd$tv_paga[df_hshd$tv_paga == 2] <- 0
+df_hshd$conex_inte[df_hshd$conex_inte == 2] <- 0
+df_hshd$esc_radio[df_hshd$esc_radio == 2] <- 0
+
+df_hshd$esc_radio[df_hshd$esc_radio == 2] <- 0
+
+#df_hshd$anio_auto  [df_hshd$anio_auto  >= 95] <- NA
+#df_hshd$anio_van   [df_hshd$anio_van   >= 95] <- NA
+#df_hshd$anio_pickup[df_hshd$anio_pickup>= 95] <- NA
+#df_hshd$anio_moto  [df_hshd$anio_moto  >= 95] <- NA
+#df_hshd$anio_bici  [df_hshd$anio_bici  >= 95] <- NA
+#df_hshd$anio_canoa [df_hshd$anio_canoa >= 95] <- NA
+#df_hshd$anio_otro  [df_hshd$anio_otro  >= 95] <- NA
+#df_hshd$num_ester  [df_hshd$num_ester  >= 95] <- NA
+#df_hshd$anio_ester [df_hshd$anio_ester >= 95] <- NA
+#df_hshd$anio_grab  [df_hshd$anio_grab  >= 95] <- NA
+#df_hshd$anio_radio [df_hshd$anio_radio >= 95] <- NA
+#df_hshd$anio_tva   [df_hshd$anio_tva   >= 95] <- NA
+#df_hshd$anio_tvd   [df_hshd$anio_tvd   >= 95] <- NA
+#df_hshd$anio_dvd   [df_hshd$anio_dvd   >= 95] <- NA
+#df_hshd$anio_video [df_hshd$anio_video >= 95] <- NA
+#df_hshd$anio_licua [df_hshd$anio_licua >= 95] <- NA
+#df_hshd$anio_tosta [df_hshd$anio_tosta >= 95] <- NA
+#df_hshd$anio_micro [df_hshd$anio_micro >= 95] <- NA
+#df_hshd$anio_refri [df_hshd$anio_refri >= 95] <- NA
+#df_hshd$anio_estuf [df_hshd$anio_estuf >= 95] <- NA
+#df_hshd$anio_lavad [df_hshd$anio_lavad >= 95] <- NA
+#df_hshd$anio_planc [df_hshd$anio_planc >= 95] <- NA
+#df_hshd$anio_maqui [df_hshd$anio_maqui >= 95] <- NA
+#df_hshd$anio_venti [df_hshd$anio_venti >= 95] <- NA
+#df_hshd$anio_aspir [df_hshd$anio_aspir >= 95] <- NA
+#df_hshd$anio_compu [df_hshd$anio_compu >= 95] <- NA
+#df_hshd$anio_impre [df_hshd$anio_impre >= 95] <- NA
+#df_hshd$anio_juego [df_hshd$anio_juego >= 95] <- NA
+```
+
+
+```{r}
+#summary(df_hshd, digits = 1)
+#Ref: https://www.jakeruss.com/cheatsheets/stargazer/
+#stargazer(df_hshd, summary.logical = FALSE)
+descr(df_hshd, stats = c("mean", "sd", "min", "med", "max", "n.valid", "pct.valid"), 
+      transpose = TRUE)
+```
+
+
+```{r}
+#These values are stored in the dwelling table
+df_hshd <- subset(df_hshd, select= c(-state_code, -urbanization, -upm, -ten_surv, -consecutive_dwell))
+
+write.csv(df_hshd, file = 'outputs/2016_enigh_households.csv', na = "NULL", 
+          fileEncoding="UTF-8", row.names=FALSE)
+```

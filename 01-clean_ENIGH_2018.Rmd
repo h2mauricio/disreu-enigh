@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Disaggregated Residential Energy Use Model (DisREU)"
 author: "Mauricio Hernandez"
 date: "2/20/2021"
 output: html_notebook
